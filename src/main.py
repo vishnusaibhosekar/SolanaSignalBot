@@ -2,8 +2,7 @@ from telethon import TelegramClient, events
 from dotenv import load_dotenv
 import os
 import csv
-from utils.message_filters import apply_filters
-from utils.message_parser import parse_message
+from datetime import datetime
 from trade_execution import automate_solana_trojan_bot  # Import the function
 
 # Load environment variables
@@ -18,35 +17,41 @@ BOT_USERNAME = "solana_trojanbot"
 # Telegram client setup
 client = TelegramClient(SESSION_NAME, TELEGRAM_API_ID, TELEGRAM_API_HASH).start(phone=TELEGRAM_PHONE)
 
-# Allowed chat IDs (supergroups must start with -100)
 chat_ids = [-1002367358385, -4650603403]
 
-# CSV file to track executed trades
+# Log files
+MESSAGE_LOG_FILE = "message_timeline_log.csv"
 TRADE_LOG_FILE = "trade_log.csv"
 
-# Ensure the trade log file exists
-def initialize_trade_log():
-    if not os.path.exists(TRADE_LOG_FILE):
-        with open(TRADE_LOG_FILE, mode='w', newline='') as file:
+# Initialize log files
+def initialize_logs():
+    # Initialize message log
+    if not os.path.exists(MESSAGE_LOG_FILE):
+        with open(MESSAGE_LOG_FILE, mode='w', newline='', encoding='utf-8') as file:
             writer = csv.writer(file)
-            writer.writerow(["contract_address"])
+            writer.writerow(["timestamp", "event_type", "message_id", "chat_id", "sender_id",
+                             "sender_name", "chat_name", "message_text"])
 
-# Check if a trade has already been executed
-def is_duplicate_trade(contract_address):
-    with open(TRADE_LOG_FILE, mode='r') as file:
-        reader = csv.reader(file)
-        next(reader, None)  # Skip the header
-        for row in reader:
-            if row[0] == contract_address:
-                return True
-    return False
+    # Initialize trade log
+    if not os.path.exists(TRADE_LOG_FILE):
+        with open(TRADE_LOG_FILE, mode='w', newline='', encoding='utf-8') as file:
+            writer = csv.writer(file)
+            writer.writerow(["timestamp", "contract_address", "status"])
 
-# Log a successful trade
-def log_trade(contract_address):
-    with open(TRADE_LOG_FILE, mode='a', newline='') as file:
+# Log message events
+def log_message_event(event_type, message_id, chat_id, sender_id, sender_name, chat_name, message_text):
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')  # More readable timestamp
+    with open(MESSAGE_LOG_FILE, mode='a', newline='', encoding='utf-8') as file:
         writer = csv.writer(file)
-        writer.writerow([contract_address])
+        writer.writerow([timestamp, event_type, message_id, chat_id, sender_id, sender_name, chat_name, message_text])
 
+# Log trade events
+def log_trade_event(contract_address, status):
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')  # More readable timestamp
+    with open(TRADE_LOG_FILE, mode='a', newline='', encoding='utf-8') as file:
+        writer = csv.writer(file)
+        writer.writerow([timestamp, contract_address, status])
+        
 def detect_potential_address(message):
     """
     Detects words longer than 20 characters in a message.
@@ -57,7 +62,7 @@ def detect_potential_address(message):
             return word
     return None
 
-async def handle_message(event):
+async def handle_message(event, event_type="new_message"):
     """
     Handles both new and edited messages.
     """
@@ -73,44 +78,38 @@ async def handle_message(event):
     # Fetch the message text
     message_text = event.text or ""
 
-    print("-------------------------------------")
-    print(f"Message from {sender_name} [{sender_id}] in {chat_name}: {message_text}")
-    print("-------------------------------------")
+    # Log the event
+    log_message_event(event_type, event.message.id, chat.id, sender_id, sender_name, chat_name, message_text)
 
     # Detect potential contract address
     potential_address = detect_potential_address(message_text)
     if potential_address:
         print(f"Detected potential Solana contract address: {potential_address}")
 
-        # Check for duplicate trades
-        if is_duplicate_trade(potential_address):
-            print(f"Duplicate trade detected for contract: {potential_address}. Skipping execution.")
-            return
-
         # Trigger Solana Trojan bot automation
-        print(f"Automating Solana bot interaction for contract: {potential_address}")
         trade_success = await automate_solana_trojan_bot(client, BOT_USERNAME, potential_address)
 
-        # Log the trade if successful
+        # Log the trade
         if trade_success:
-            print(f"Trade successful for contract: {potential_address}. Logging trade.")
-            log_trade(potential_address)
+            log_trade_event(potential_address, "success")
+            print(f"Trade successful for contract: {potential_address}.")
         else:
-            print(f"Trade failed for contract: {potential_address}. Not logging.")
+            log_trade_event(potential_address, "failed")
+            print(f"Trade failed for contract: {potential_address}.")
 
 @client.on(events.NewMessage(chats=chat_ids))
 async def new_message_handler(event):
     """Handles new messages."""
-    await handle_message(event)
+    await handle_message(event, event_type="new_message")
 
 @client.on(events.MessageEdited(chats=chat_ids))
 async def edited_message_handler(event):
     """Handles edited messages."""
-    await handle_message(event)
+    await handle_message(event, event_type="message_edited")
 
 async def main():
     """Start the Telegram client."""
-    initialize_trade_log()
+    initialize_logs()
     print("Connected to Telegram!")
     print("Listening...")
     await client.run_until_disconnected()
