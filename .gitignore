@@ -16,4 +16,8 @@ chat_ids.py
 
 *.session
 
+.session-journal
+
 .env
+
+.csv
