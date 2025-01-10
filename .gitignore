@@ -1,0 +1,19 @@
+# Ignore virtual environment
+venv/
+__pycache__/
+
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+# Ignore Python compiled files
+*.pyc
+
+# Ignore credentials (add your config file if it contains sensitive data)
+config.py
+
+chat_ids.py
+
+*.session
+
+.env
