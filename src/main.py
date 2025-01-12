@@ -70,8 +70,8 @@ async def handle_message(event, event_type="new_message"):
     potential_address = detect_potential_address(message_text)
     if potential_address:
         print(f"Detected potential Solana contract address: {potential_address}")
-        trade_success, amount, price = await automate_solana_trojan_bot(client, BOT_USERNAME, potential_address)
-        log_trade_event(potential_address, "success" if trade_success else "failed", amount, price)
+        # trade_success, amount, price = await automate_solana_trojan_bot(client, BOT_USERNAME, potential_address)
+        log_trade_event(potential_address, "paused", "amount", "price")
 
 @client.on(events.NewMessage(chats=chat_ids))
 async def new_message_handler(event):
