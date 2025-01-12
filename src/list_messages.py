@@ -25,7 +25,7 @@ async def list_messages(chat_id: int, output_csv: str):
     with open(output_csv, mode='w', newline='', encoding='utf-8') as csv_file:
         writer = csv.writer(csv_file)
         # Write the header
-        writer.writerow(["timestamp", "event_type", "message_id", "message_text"])
+        writer.writerow(["timestamp", "event_type", "message_id", "sender_id", "message_text"])
 
         # Iterate through all messages in the chat
         async for message in client.iter_messages(chat_id, reverse=True):
@@ -33,7 +33,7 @@ async def list_messages(chat_id: int, output_csv: str):
             event_type = "Service" if isinstance(message, MessageService) else "Message"
             message_id = message.id
             message_text = message.message or ""
-            writer.writerow([timestamp, event_type, message_id, message_text])
+            writer.writerow([timestamp, event_type, message_id, message.sender_id, message_text])
 
     print(f"Messages have been saved to {output_csv}.")
 

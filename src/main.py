@@ -4,18 +4,16 @@ import os
 import csv
 from datetime import datetime
 from trade_execution import automate_solana_trojan_bot
+from message_filters import apply_filters
 
 # Load environment variables
-load_dotenv()  # Debugging step to ensure it’s set correctly
+load_dotenv()
 
 TELEGRAM_PHONE = os.getenv("TELEGRAM_PHONE")
 TELEGRAM_API_ID = int(os.getenv("API_ID"))
 TELEGRAM_API_HASH = os.getenv("API_HASH")
 SESSION_NAME = os.getenv("SESSION_NAME")
 BOT_USERNAME = "solana_trojanbot"
-
-
-print(TELEGRAM_PHONE)
 
 # Telegram client setup
 client = TelegramClient(SESSION_NAME, TELEGRAM_API_ID, TELEGRAM_API_HASH).start(phone=TELEGRAM_PHONE)
@@ -61,6 +59,10 @@ async def handle_message(event, event_type="new_message"):
     chat = await event.get_chat()
     chat_name = chat.title if hasattr(chat, "title") else "Private Chat"
     message_text = event.text or ""
+
+    if not apply_filters(event.sender_id, message_text):
+        print(f"Message from sender {event.sender_id} filtered out.")
+        return
 
     log_message_event(event_type, event.message.id, chat.id, chat_name, message_text)
 
