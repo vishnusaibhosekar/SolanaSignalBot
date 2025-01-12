@@ -18,7 +18,7 @@ BOT_USERNAME = "solana_trojanbot"
 client = TelegramClient(SESSION_NAME, TELEGRAM_API_ID, TELEGRAM_API_HASH).start(phone=TELEGRAM_PHONE)
 
 # Allowed chat IDs (supergroups must start with -100)
-chat_ids = [-1002367358385, -4650603403]
+chat_ids = [-1002367358385, -4650603403, -1002378664747]
 
 # Log files
 MESSAGE_LOG_FILE = "message_timeline_log.csv"
@@ -29,18 +29,17 @@ def initialize_logs():
     if not os.path.exists(MESSAGE_LOG_FILE):
         with open(MESSAGE_LOG_FILE, mode='w', newline='', encoding='utf-8') as file:
             writer = csv.writer(file)
-            writer.writerow(["timestamp", "event_type", "message_id", "chat_id", "sender_id", 
-                             "sender_name", "chat_name", "message_text"])
+            writer.writerow(["timestamp", "event_type", "message_id", "chat_id", "chat_name", "message_text"])
     if not os.path.exists(TRADE_LOG_FILE):
         with open(TRADE_LOG_FILE, mode='w', newline='', encoding='utf-8') as file:
             writer = csv.writer(file)
             writer.writerow(["timestamp", "contract_address", "status", "amount", "price"])
 
-def log_message_event(event_type, message_id, chat_id, sender_id, sender_name, chat_name, message_text):
+def log_message_event(event_type, message_id, chat_id, chat_name, message_text):
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     with open(MESSAGE_LOG_FILE, mode='a', newline='', encoding='utf-8') as file:
         writer = csv.writer(file)
-        writer.writerow([timestamp, event_type, message_id, chat_id, sender_id, sender_name, chat_name, message_text])
+        writer.writerow([timestamp, event_type, message_id, chat_id, chat_name, message_text])
 
 def log_trade_event(contract_address, status, amount=None, price=None):
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -55,15 +54,12 @@ def detect_potential_address(message):
             return word
     return None
 
-async def handle_message(event, event_type="new_message"):
-    sender = await event.get_sender()
-    sender_name = sender.first_name if sender else "Unknown"
-    sender_id = sender.id if sender else "Unknown"
+async def handle_new_message(event, event_type="new_message"):
     chat = await event.get_chat()
     chat_name = chat.title if hasattr(chat, "title") else "Private Chat"
     message_text = event.text or ""
 
-    log_message_event(event_type, event.message.id, chat.id, sender_id, sender_name, chat_name, message_text)
+    log_message_event(event_type, event.message.id, chat.id, chat_name, message_text)
 
     potential_address = detect_potential_address(message_text)
     if potential_address:
