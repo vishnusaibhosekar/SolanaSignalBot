@@ -6,13 +6,16 @@ from datetime import datetime
 from trade_execution import automate_solana_trojan_bot
 
 # Load environment variables
-load_dotenv()
+load_dotenv()  # Debugging step to ensure it’s set correctly
 
 TELEGRAM_PHONE = os.getenv("TELEGRAM_PHONE")
 TELEGRAM_API_ID = int(os.getenv("API_ID"))
 TELEGRAM_API_HASH = os.getenv("API_HASH")
 SESSION_NAME = os.getenv("SESSION_NAME")
 BOT_USERNAME = "solana_trojanbot"
+
+
+print(TELEGRAM_PHONE)
 
 # Telegram client setup
 client = TelegramClient(SESSION_NAME, TELEGRAM_API_ID, TELEGRAM_API_HASH).start(phone=TELEGRAM_PHONE)
@@ -54,12 +57,15 @@ def detect_potential_address(message):
             return word
     return None
 
-async def handle_new_message(event, event_type="new_message"):
+async def handle_message(event, event_type="new_message"):
     chat = await event.get_chat()
     chat_name = chat.title if hasattr(chat, "title") else "Private Chat"
     message_text = event.text or ""
 
     log_message_event(event_type, event.message.id, chat.id, chat_name, message_text)
+
+    if event_type == "message_edited":
+        return
 
     potential_address = detect_potential_address(message_text)
     if potential_address:
