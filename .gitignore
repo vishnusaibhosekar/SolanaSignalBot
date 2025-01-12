@@ -16,10 +16,10 @@ chat_ids.py
 
 *.session
 
-.session-journal
+*.session-journal
 
 .env
 
-.csv
+*.csv
 
 .venv/
