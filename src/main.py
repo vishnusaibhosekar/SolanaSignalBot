@@ -63,8 +63,8 @@ async def handle_message(event, event_type="new_message"):
 
     log_message_event(event_type, event.message.id, chat.id, chat_name, message_text)
 
-    if event_type == "message_edited":
-        return
+    # if event_type == "message_edited":
+    #     return
 
     contract_address, token_ticker = extract_token_data(message_text)
 
@@ -77,9 +77,9 @@ async def handle_message(event, event_type="new_message"):
 async def new_message_handler(event):
     await handle_message(event, event_type="new_message")
 
-@client.on(events.MessageEdited(chats=chat_ids))
-async def edited_message_handler(event):
-    await handle_message(event, event_type="message_edited")
+# @client.on(events.MessageEdited(chats=chat_ids))
+# async def edited_message_handler(event):
+#     await handle_message(event, event_type="message_edited")
 
 async def main():
     initialize_logs()
