@@ -33,9 +33,9 @@ async def handle_bot_response(event, event_type, client, bot_username, contract_
     global current_trade
 
     message_text = event.message.message
-    print("\n-------------------------------------\n")
-    print(f"message id: {event.message.id} - {event_type} from bot: {message_text}")
-    print("\n-------------------------------------\n")
+    # print("\n-------------------------------------\n")
+    # print(f"message id: {event.message.id} - {event_type} from bot: {message_text}")
+    # print("\n-------------------------------------\n")
     
     try:
         # If a trade is already in progress, process only relevant follow-up messages
