@@ -13,7 +13,7 @@ def extract_token_data(message_text):
     token_ticker = None
 
     for line in lines:
-        if "💊" in line:
+        if "]** **" in line:
             token_ticker = extract_text_between_markers(line)
         if line.startswith("`"):
             ca = line[1:-1]
