@@ -14,41 +14,49 @@ async def automate_solana_trojan_bot(client, bot_username, contract_address, amt
         nonlocal sol_balance, trade_amount, trade_price
         message_text = event.message.message
         print(f"New message from {bot_username}: {message_text}")
+        print()
+        print()
+        print()
 
         try:
-            if "Balance:" in message_text and sol_balance == 0.0:
+            if "Balance:" in message_text:
                 sol_balance = extract_sol_balance(message_text)
                 print(f"Extracted SOL Balance: {sol_balance}")
 
             if event.message.buttons:
                 for row in event.message.buttons:
                     for button in row:
-                        print(f"Button Text: {button.text}")
-                        if "SOL ✏️" in button.text:
-                            print("Clicking the 'SOL ✏️' button...")
-                            await button.click()
-                            return
+                        print(f"{button.text} | ") 
+                        # if "SOL ✏️" in button.text:
+                        #     print("Clicking the 'SOL ✏️' button...")
+                        #     await button.click()
+                        #     return
                         if button.text.lower() == "buy":
-                            print("Clicking the 'Buy' button...")
+                            # print("Clicking the 'Buy' button...")
                             await button.click()
                             return
 
             if "enter a token symbol or address to buy" in message_text.lower():
-                print(f"Sending contract address: {contract_address}")
+                print(f"Sending contract address: {contract_address}\n\n")
                 await client.send_message(bot_username, contract_address)
                 return
 
-            if "enter sol amount" in message_text.lower():
-                if amt is None:
-                    amt = round(sol_balance * 0.01, 4)
-                print(f"Sending amount: {amt}")
-                await client.send_message(bot_username, str(amt))
+            # if "enter sol amount" in message_text.lower():
+            #     if amt is None:
+            #         amt = round(sol_balance * 0.01, 4)
+            #     print(f"Sending amount: {amt}")
+            #     await client.send_message(bot_username, str(amt))
+            #     return
+
+            if "🔴" in message_text:
+                # Add a failed trade logic here and log it
                 return
 
-            if "Trade executed" in message_text:
-                trade_amount = extract_trade_amount(message_text)
-                trade_price = extract_trade_price(message_text)
-                print(f"Trade executed: Amount={trade_amount}, Price={trade_price}")
+            if "🟢" in message_text:
+                print(f"Trade executed!")
+                print(message_text)
+                # Add a successful trade logic here and log it
+                # Monitor message ID, send edits on the message ID to chatGPT for qualitative analysis
                 return
 
         except Exception as e:

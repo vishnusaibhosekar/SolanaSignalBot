@@ -4,7 +4,8 @@ import os
 import csv
 from datetime import datetime
 from trade_execution import automate_solana_trojan_bot
-from message_filters import apply_filters
+from utils.message_filters import apply_filters
+from utils.message_parser import extract_token_data
 
 # Load environment variables
 load_dotenv()
@@ -19,7 +20,7 @@ BOT_USERNAME = "solana_trojanbot"
 client = TelegramClient(SESSION_NAME, TELEGRAM_API_ID, TELEGRAM_API_HASH).start(phone=TELEGRAM_PHONE)
 
 # Allowed chat IDs (supergroups must start with -100)
-chat_ids = [-1002367358385, -4650603403, -1002378664747]
+chat_ids = [-1002367358385, -4650603403, -1002378664747, -1002378664747]
 
 # Log files
 MESSAGE_LOG_FILE = "message_timeline_log.csv"
@@ -48,20 +49,16 @@ def log_trade_event(contract_address, status, amount=None, price=None):
         writer = csv.writer(file)
         writer.writerow([timestamp, contract_address, status, amount, price])
 
-def detect_potential_address(message):
-    words = message.split()
-    for word in words:
-        if len(word) > 20:
-            return word
-    return None
-
 async def handle_message(event, event_type="new_message"):
     chat = await event.get_chat()
     chat_name = chat.title if hasattr(chat, "title") else "Private Chat"
     message_text = event.text or ""
 
+    sender = await event.get_sender()
+    sender_name = sender.username if sender.username else sender.first_name
+
     if not apply_filters(event.sender_id, message_text):
-        print(f"Message from sender {event.sender_id} filtered out.")
+        print(f"Message from sender {sender_name} (ID: {event.sender_id}) filtered out.")
         return
 
     log_message_event(event_type, event.message.id, chat.id, chat_name, message_text)
@@ -69,11 +66,12 @@ async def handle_message(event, event_type="new_message"):
     if event_type == "message_edited":
         return
 
-    potential_address = detect_potential_address(message_text)
-    if potential_address:
-        print(f"Detected potential Solana contract address: {potential_address}")
-        # trade_success, amount, price = await automate_solana_trojan_bot(client, BOT_USERNAME, potential_address)
-        log_trade_event(potential_address, "paused", "amount", "price")
+    contract_address, token_ticker = extract_token_data(message_text)
+
+    if contract_address:
+        print(f"Detected contract address: {contract_address} ({token_ticker})")
+        # trade_success, amount, price = await automate_solana_trojan_bot(client, BOT_USERNAME, contract_address)
+        # log_trade_event(contract_address, "success" if trade_success else "failed", amount, price)
 
 @client.on(events.NewMessage(chats=chat_ids))
 async def new_message_handler(event):
