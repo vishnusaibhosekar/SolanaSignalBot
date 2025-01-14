@@ -62,7 +62,7 @@ async def reply_handler(event):
                 print(f"Error during trade execution: {e}")
 
 async def main():
-    initialize_logs()
+    # initialize_logs()
     print("Connected to Telegram!")
     print("Listening...")
     await client.run_until_disconnected()
