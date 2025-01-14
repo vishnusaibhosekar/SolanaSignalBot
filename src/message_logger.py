@@ -3,6 +3,8 @@ from dotenv import load_dotenv
 import asyncio
 import os
 from collections import deque
+from utils.message_parser import extract_token_data
+from trade_execution import automate_solana_trojan_bot
 
 # Load environment variables
 load_dotenv()
@@ -11,6 +13,8 @@ TELEGRAM_PHONE = os.getenv("TELEGRAM_PHONE")
 TELEGRAM_API_ID = int(os.getenv("API_ID"))
 TELEGRAM_API_HASH = os.getenv("API_HASH")
 SESSION_NAME = os.getenv("SESSION_NAME")
+
+BOT_USERNAME = "solana_trojanbot"
 
 RICKBOT_ID = int(os.getenv("RICKBOT_ID"))
 VISI_CHAT_ID = int(os.getenv("VISI_CHAT_ID"))
@@ -102,6 +106,7 @@ async def listen_for_replies(forwarded_message):
     """
     Listen for replies to the forwarded message in Visi Chat.
     Stops waiting as soon as a reply from Rickbot is found.
+    Executes trades sequentially.
     """
     try:
         print(f"Listening for replies to forwarded message: {forwarded_message.text}")
@@ -130,7 +135,25 @@ async def listen_for_replies(forwarded_message):
         if replies:
             for reply in replies:
                 print(f"Original message: {forwarded_message.text}")
-                print(f"Reply by RICKBOT: {reply.text}")
+                # print(f"Reply by RICKBOT: {reply.text}") # Don't print the reply to Rickbot - too spammy
+
+                contract_address, token_ticker = extract_token_data(reply.text or "")
+
+                if contract_address:
+                    print(f"Detected contract address: {contract_address} ({token_ticker})")
+
+                    # Ensure sequential execution of trades
+                    async with processing_lock:
+                        try:
+                            trade_success = await automate_solana_trojan_bot(
+                                client, BOT_USERNAME, contract_address, token_ticker, "buy"
+                            )
+                            if trade_success:
+                                print(f"Trade executed successfully for {token_ticker}.")
+                            else:
+                                print(f"Trade execution failed for {token_ticker}.")
+                        except Exception as e:
+                            print(f"Error during trade execution: {e}")
         else:
             print("No replies from RICKBOT within the timeout for the message:")
             print(f"Original message: {forwarded_message.text}")
