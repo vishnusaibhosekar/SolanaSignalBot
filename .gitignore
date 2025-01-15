@@ -23,3 +23,5 @@ chat_ids.py
 *.csv
 
 .venv/
+
+config.py

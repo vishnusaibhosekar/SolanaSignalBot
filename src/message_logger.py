@@ -6,6 +6,9 @@ from collections import deque
 from utils.message_parser import extract_token_data
 from trade_execution import automate_solana_trojan_bot
 
+# create a config dict with chat_id, channel_id keys in config.py
+from config import config
+
 # Load environment variables
 load_dotenv()
 
@@ -14,13 +17,14 @@ TELEGRAM_API_ID = int(os.getenv("API_ID"))
 TELEGRAM_API_HASH = os.getenv("API_HASH")
 SESSION_NAME = os.getenv("SESSION_NAME")
 
-BOT_USERNAME = "solana_trojanbot"
+TROJAN_BOT_USERNAME = "solana_trojanbot"
+UNIBOT_USERNAME = "unibot"
 
 RICKBOT_ID = int(os.getenv("RICKBOT_ID"))
 # VISI_CHAT_ID = int(os.getenv("VISI_CHAT_ID"))
 # VISI_CHANNEL_ID = int(os.getenv("VISI_CHANNEL_ID"))
-TRENCHES_CHAT_ID = int(os.getenv("TRENCHES_CHAT_ID"))
-TRENCHES_CALLS_ID = int(os.getenv("TRENCHES_CALLS_ID"))
+CHAT_ID = config["chat_id"]
+CHANNEL_ID = config["channel_id"]
 
 # Telegram client setup
 client = TelegramClient(SESSION_NAME, TELEGRAM_API_ID, TELEGRAM_API_HASH).start(phone=TELEGRAM_PHONE)
@@ -32,13 +36,13 @@ processing_lock = asyncio.Lock()
 # Dictionary to track reply-waiting tasks
 reply_tasks = {}
 
-@client.on(events.NewMessage(chats=TRENCHES_CALLS_ID))
+@client.on(events.NewMessage(chats=CHANNEL_ID))
 async def new_message_handler(event):
     """
-    Handles new messages in the Visi Channel.
+    Handles new messages in the channel.
     Adds them to the processing queue.
     """
-    print(f"\nNew message in Visi Channel: {event.message.text}")
+    print(f"\nNew message in channel: {event.message.text}")
     message_queue.append(event.message)
 
     # Process messages in the queue one at a time
@@ -49,14 +53,14 @@ async def new_message_handler(event):
 
 async def process_message(original_message):
     """
-    Processes a single message from the Visi Channel.
+    Processes a single message from the channel.
     Waits for the forwarded message and listens for replies.
     """
     original_message_id = original_message.id
     forwarded_message = await wait_for_forwarded_message(original_message_id, 10)
 
     if forwarded_message:
-        print(f"Forwarded message found in Visi Chat: {forwarded_message.text}")
+        print(f"Forwarded message found in chat: {forwarded_message.text}")
         await listen_for_replies(forwarded_message)
     else:
         print("No forwarded message found within the timeout.")
@@ -64,14 +68,14 @@ async def process_message(original_message):
 
 async def wait_for_forwarded_message(original_message_id, timeout):
     """
-    Wait for the forwarded message in Visi Chat for a specified timeout.
+    Wait for the forwarded message in chat for a specified timeout.
     Stops waiting as soon as the forwarded message is found.
     """
     try:
         forwarded_message = None
         event_received = asyncio.Event()  # Event to signal when the forwarded message is received
 
-        @client.on(events.NewMessage(chats=TRENCHES_CHAT_ID))
+        @client.on(events.NewMessage(chats=CHAT_ID))
         async def forwarded_message_handler(event):
             nonlocal forwarded_message
 
@@ -79,7 +83,7 @@ async def wait_for_forwarded_message(original_message_id, timeout):
                 fwd_from = event.message.fwd_from
 
                 if (
-                    f"-100{fwd_from.from_id.channel_id}" == str(TRENCHES_CALLS_ID)
+                    f"-100{fwd_from.from_id.channel_id}" == str(CHANNEL_ID)
                     and fwd_from.channel_post == original_message_id
                 ):
 
@@ -103,7 +107,7 @@ async def wait_for_forwarded_message(original_message_id, timeout):
 
 async def listen_for_replies(forwarded_message):
     """
-    Listen for replies to the forwarded message in Visi Chat.
+    Listen for replies to the forwarded message in Chat.
     Stops waiting as soon as a reply from Rickbot is found.
     Executes trades sequentially.
     """
@@ -112,7 +116,7 @@ async def listen_for_replies(forwarded_message):
         replies = []
         event_received = asyncio.Event()  # Event to signal when a reply is received
 
-        @client.on(events.NewMessage(chats=TRENCHES_CHAT_ID))
+        @client.on(events.NewMessage(chats=CHAT_ID))
         async def reply_handler(event):
             nonlocal replies
 
@@ -145,7 +149,7 @@ async def listen_for_replies(forwarded_message):
                     async with processing_lock:
                         try:
                             trade_success = await automate_solana_trojan_bot(
-                                client, BOT_USERNAME, contract_address, token_ticker, "buy"
+                                client, TROJAN_BOT_USERNAME, contract_address, token_ticker, "buy"
                             )
                             if trade_success:
                                 print(f"Trade executed successfully for {token_ticker}.")
