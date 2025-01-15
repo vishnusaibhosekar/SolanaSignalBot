@@ -17,11 +17,10 @@ SESSION_NAME = os.getenv("SESSION_NAME")
 BOT_USERNAME = "solana_trojanbot"
 
 RICKBOT_ID = int(os.getenv("RICKBOT_ID"))
-VISI_CHAT_ID = int(os.getenv("VISI_CHAT_ID"))
-VISI_CHANNEL_ID = int(os.getenv("VISI_CHANNEL_ID"))
-# TRENCHES_CALLS_SENDER_ID_IN_TRENCHES_CHAT = int(os.getenv("TRENCHES_CALLS_SENDER_ID_IN_TRENCHES_CHAT"))
-# VISHNU_SENDER_ID = int(os.getenv("VISHNU_SENDER_ID"))
-# SIDDHARTH_SENDER_ID = int(os.getenv("SIDDHARTH_SENDER_ID"))
+# VISI_CHAT_ID = int(os.getenv("VISI_CHAT_ID"))
+# VISI_CHANNEL_ID = int(os.getenv("VISI_CHANNEL_ID"))
+TRENCHES_CHAT_ID = int(os.getenv("TRENCHES_CHAT_ID"))
+TRENCHES_CALLS_ID = int(os.getenv("TRENCHES_CALLS_ID"))
 
 # Telegram client setup
 client = TelegramClient(SESSION_NAME, TELEGRAM_API_ID, TELEGRAM_API_HASH).start(phone=TELEGRAM_PHONE)
@@ -33,7 +32,7 @@ processing_lock = asyncio.Lock()
 # Dictionary to track reply-waiting tasks
 reply_tasks = {}
 
-@client.on(events.NewMessage(chats=VISI_CHANNEL_ID))
+@client.on(events.NewMessage(chats=TRENCHES_CALLS_ID))
 async def new_message_handler(event):
     """
     Handles new messages in the Visi Channel.
@@ -72,7 +71,7 @@ async def wait_for_forwarded_message(original_message_id, timeout):
         forwarded_message = None
         event_received = asyncio.Event()  # Event to signal when the forwarded message is received
 
-        @client.on(events.NewMessage(chats=VISI_CHAT_ID))
+        @client.on(events.NewMessage(chats=TRENCHES_CHAT_ID))
         async def forwarded_message_handler(event):
             nonlocal forwarded_message
 
@@ -80,7 +79,7 @@ async def wait_for_forwarded_message(original_message_id, timeout):
                 fwd_from = event.message.fwd_from
 
                 if (
-                    f"-100{fwd_from.from_id.channel_id}" == str(VISI_CHANNEL_ID)
+                    f"-100{fwd_from.from_id.channel_id}" == str(TRENCHES_CALLS_ID)
                     and fwd_from.channel_post == original_message_id
                 ):
 
@@ -113,7 +112,7 @@ async def listen_for_replies(forwarded_message):
         replies = []
         event_received = asyncio.Event()  # Event to signal when a reply is received
 
-        @client.on(events.NewMessage(chats=VISI_CHAT_ID))
+        @client.on(events.NewMessage(chats=TRENCHES_CHAT_ID))
         async def reply_handler(event):
             nonlocal replies
 
@@ -166,8 +165,7 @@ async def listen_for_replies(forwarded_message):
 
 
 async def main():
-    print("Message Logger is running...")
-    print("Listening for new messages in Visi Channel...")
+    print("Listening for new calls...")
     await client.run_until_disconnected()
 
 if __name__ == "__main__":
