@@ -1,0 +1,29 @@
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environment
+.venv/
+env/
+
+# Environment variables file
+.env
+
+# Logs
+*.log
+*.csv
+
+# Node-related files (if applicable, e.g., using Node.js for tools)
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+
+# Git files
+.git/
+.gitignore
+
+# IDE settings
+*.idea/
+*.vscode/
