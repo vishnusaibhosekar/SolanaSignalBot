@@ -1,3 +1,5 @@
+import csv
+from datetime import datetime, timezone
 from telethon import TelegramClient, events
 from dotenv import load_dotenv
 import asyncio
@@ -13,7 +15,7 @@ from config import config
 load_dotenv()
 
 TELEGRAM_PHONE = os.getenv("TELEGRAM_PHONE")
-TELEGRAM_API_ID = int(os.getenv("API_ID"))
+TELEGRAM_API_ID = os.getenv("API_ID")
 TELEGRAM_API_HASH = os.getenv("API_HASH")
 SESSION_NAME = os.getenv("SESSION_NAME")
 
@@ -26,6 +28,15 @@ RICKBOT_ID = int(os.getenv("RICKBOT_ID"))
 CHAT_ID = config["chat_id"]
 CHANNEL_ID = config["channel_id"]
 
+# CSV log file path
+LOG_FILE = "message_logs.csv"
+
+# Ensure log file has headers
+if not os.path.exists(LOG_FILE):
+    with open(LOG_FILE, mode="w", newline="") as file:
+        writer = csv.writer(file)
+        writer.writerow(["timestamp", "message_id", "message_text", "is_reply", "replied_message_id", "event_type"])
+
 # Telegram client setup
 client = TelegramClient(SESSION_NAME, TELEGRAM_API_ID, TELEGRAM_API_HASH).start(phone=TELEGRAM_PHONE)
 
@@ -36,20 +47,76 @@ processing_lock = asyncio.Lock()
 # Dictionary to track reply-waiting tasks
 reply_tasks = {}
 
+def get_last_message_state(message_id):
+    """
+    Fetch the last logged state of a message from the CSV log file.
+    Prioritizes the latest message (greatest message ID) for efficiency.
+    Returns the message text if found, or None if not found.
+    """
+    try:
+        with open(LOG_FILE, mode="r") as file:
+            rows = list(csv.DictReader(file))  # Read all rows into a list
+            for row in reversed(rows):  # Iterate from the latest (greatest ID)
+                if int(row["message_id"]) == message_id:
+                    return row["message_text"]
+    except Exception as e:
+        print(f"Error while fetching message state: {e}")
+    return None
+
+def log_message(message_id, message_text, is_reply, replied_message_id, event_type):
+    """
+    Logs message details to a CSV file.
+    """
+    with open(LOG_FILE, mode="a", newline="") as file:
+        writer = csv.writer(file)
+        writer.writerow([
+            datetime.now(timezone.utc).isoformat(),  # Use timezone-aware UTC datetime
+            message_id,
+            message_text,
+            is_reply,
+            replied_message_id if replied_message_id is not None else "",
+            event_type
+        ])
+
 @client.on(events.NewMessage(chats=CHANNEL_ID))
 async def new_message_handler(event):
     """
     Handles new messages in the channel.
-    Adds them to the processing queue.
+    Adds them to the processing queue and logs them.
     """
     print(f"\nNew message in channel: {event.message.text}")
     message_queue.append(event.message)
+
+    # Log the new message
+    is_reply = event.message.is_reply
+    replied_message_id = event.message.reply_to_msg_id if is_reply else None
+    log_message(event.message.id, event.message.text, is_reply, replied_message_id, "new")
 
     # Process messages in the queue one at a time
     async with processing_lock:
         while message_queue:
             current_message = message_queue.popleft()
             await process_message(current_message)
+
+@client.on(events.MessageEdited(chats=CHANNEL_ID))
+async def edited_message_handler(event):
+    """
+    Handles edited messages in the channel and logs them only if the text was actually changed.
+    """
+    message_id = event.message.id
+
+    # Fetch the last state of the message from the logs
+    last_text = get_last_message_state(message_id)
+
+    # Compare the current text with the last logged state
+    if last_text is not None and last_text.strip() == event.message.text.strip():
+        return
+
+    # Log the edited message
+    print(f"Edited message in channel: {event.message.text}")
+    is_reply = event.message.is_reply
+    replied_message_id = event.message.reply_to_msg_id if is_reply else None
+    log_message(event.message.id, event.message.text, is_reply, replied_message_id, "edit")
 
 async def process_message(original_message):
     """
@@ -64,7 +131,6 @@ async def process_message(original_message):
         await listen_for_replies(forwarded_message)
     else:
         print("No forwarded message found within the timeout.")
-
 
 async def wait_for_forwarded_message(original_message_id, timeout):
     """
@@ -103,7 +169,6 @@ async def wait_for_forwarded_message(original_message_id, timeout):
     except Exception as e:
         print(f"Error while waiting for forwarded message: {e}")
         return None
-
 
 async def listen_for_replies(forwarded_message):
     """
@@ -146,17 +211,16 @@ async def listen_for_replies(forwarded_message):
                     print(f"Detected contract address: {contract_address} ({token_ticker})")
 
                     # Ensure sequential execution of trades
-                    async with processing_lock:
-                        try:
-                            trade_success = await automate_solana_trojan_bot(
-                                client, TROJAN_BOT_USERNAME, contract_address, token_ticker, "buy"
-                            )
-                            if trade_success:
-                                print(f"Trade executed successfully for {token_ticker}.")
-                            else:
-                                print(f"Trade execution failed for {token_ticker}.")
-                        except Exception as e:
-                            print(f"Error during trade execution: {e}")
+                    try:
+                        trade_success = await automate_solana_trojan_bot(
+                            client, TROJAN_BOT_USERNAME, contract_address, token_ticker, "buy"
+                        )
+                        if trade_success:
+                            print(f"Trade executed successfully for {token_ticker}.")
+                        else:
+                            print(f"Trade execution failed for {token_ticker}.")
+                    except Exception as e:
+                        print(f"Error during trade execution: {e}")
         else:
             print("No replies from RICKBOT within the timeout for the message:")
             print(f"Original message: {forwarded_message.text}")
@@ -166,7 +230,6 @@ async def listen_for_replies(forwarded_message):
 
     except Exception as e:
         print(f"Error while listening for replies: {e}")
-
 
 async def main():
     print("Listening for new calls...")
