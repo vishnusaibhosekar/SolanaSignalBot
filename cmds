@@ -1,1 +1,9 @@
 watchmedo auto-restart --patterns="*.py" --recursive -- python src/main.py
+
+docker build -t solana_signal_bot .
+
+docker run -it -v "$(pwd)/src/sessions:/app/src/sessions" --name solana_bot_container solana_signal_bot
+
+docker stop solana_bot_container
+
+docker rm solana_bot_container

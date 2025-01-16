@@ -7,9 +7,6 @@ __pycache__/
 .venv/
 env/
 
-# Environment variables file
-.env
-
 # Logs
 *.log
 *.csv
