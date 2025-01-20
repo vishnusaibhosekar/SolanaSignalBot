@@ -102,7 +102,8 @@ async def new_message_handler(event):
             return
         if sender.id == SECTBOT_ID:
             sect_data = sectbot_parse_message(message_text)
-            if not sect_data.caller_name in GOATED_CALLERS:
+            caller_name = sect_data.get("caller_name")  # Use `.get` to handle missing keys gracefully
+            if not caller_name or caller_name not in GOATED_CALLERS:
                 return
 
     # Forward the message
