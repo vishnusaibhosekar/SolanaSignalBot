@@ -30,7 +30,7 @@ SECTBOT_ID = int(os.getenv("SECTBOT_ID"))
 CHANNEL_IDS = config["channel_ids"]
 FORWARD_CHAT_ID = config["forward_chat_id"]
 
-GOATED_CALLERS = ["Nima2103","simpin8ntpimpin","ariannn74","KTuck","marcus_g_relius","Juicebox10","arcadesora","zack178","Jarled250","alexem89","PaddyCoke","wesleywhb","Mounir2507","siddharthpeyyeti","alexandrekozlo","zillamix","Flynn180","JiggyStuntman","Frenksuss","Xodus_OG","John8544","ddjonesjr","YousufStalin","Minas098","saylesscrypto","clixtg","kawaljit76","satyaj2","vnt_0x"]
+GOATED_CALLERS_SENDER_IDS = [2119724331,1223694233,409154569,1338353807,964598469,769169133,1535262638,493872071,5484082105,1397332595,777844680,1797023625,1832350846,2131915710,5296498018,5542088802,1605472926,223721205,408193103,993953512,321994950,1777312783,1616484060,5395602026]
 
 # CSV log file path
 LOG_FILE = "message_logs.csv"
@@ -43,13 +43,6 @@ if not os.path.exists(LOG_FILE):
 
 # Telegram client setup
 client = TelegramClient(SESSION_NAME, TELEGRAM_API_ID, TELEGRAM_API_HASH).start(phone=TELEGRAM_PHONE)
-
-# Initialize a queue for messages
-message_queue = deque()
-processing_lock = asyncio.Lock()
-
-# Dictionary to track reply-waiting tasks
-reply_tasks = {}
 
 def get_last_message_state(message_id):
     """
@@ -89,21 +82,21 @@ async def new_message_handler(event):
     Handles new messages in the channel.
     Forwards the message text to the forward chat and processes replies there.
     """
-
     channel_id = event.chat_id
     is_reply = event.message.is_reply
     replied_message_id = event.message.reply_to_msg_id if is_reply else None
-
     message_text = event.message.text
 
+    # Handle shitcoins community calls case
     if channel_id == SHITCOIN_COMMUNITY_CALLS_ID:
         sender = await event.get_sender()
-        if not (sender.id == RICKBOT_ID or sender.id == SECTBOT_ID):
-            return
-        if sender.id == SECTBOT_ID:
-            sect_data = sectbot_parse_message(message_text)
-            caller_name = sect_data.get("caller_name")  # Use `.get` to handle missing keys gracefully
-            if not caller_name or caller_name not in GOATED_CALLERS:
+        if sender.id == SECTBOT_ID and event.message.is_reply:
+            # Fetch the original sender from the replied-to message
+            replied_message = await client.get_messages(channel_id, ids=replied_message_id)
+            original_sender = await replied_message.get_sender()
+
+            # Only proceed if the original sender ID is in GOATED_CALLERS
+            if not original_sender.id in GOATED_CALLERS_SENDER_IDS:
                 return
 
     # Forward the message
@@ -111,7 +104,7 @@ async def new_message_handler(event):
 
     # Log the new message
     # TODO: add a primary key event_id in the log
-    log_message(channel_id, event.message.id, event.message.text, is_reply, replied_message_id, "new")
+    log_message(channel_id, event.message.id, message_text, is_reply, replied_message_id, "new")
 
     # Listen for replies in FORWARD_CHAT_ID
     await listen_for_replies(event.message.text)
@@ -122,7 +115,7 @@ async def forward_message(client, forward_chat_id, message_text):
     """
     try:
         await client.send_message(forward_chat_id, message_text)
-        print(f"Message forwarded to chat {forward_chat_id}: {message_text}")
+        # print(f"Message forwarded to chat {forward_chat_id}: {message_text}")
     except Exception as e:
         print(f"Error while forwarding message: {e}")
 
@@ -153,7 +146,7 @@ async def listen_for_replies(forwarded_message_text):
     Executes trades sequentially.
     """
     try:
-        print(f"Listening for replies in FORWARD_CHAT_ID for: {forwarded_message_text}")
+        print(f"Listening for replies in FORWARD_CHAT_ID: {FORWARD_CHAT_ID}")
         replies = []
         event_received = asyncio.Event()  # Event to signal when a reply is received
 
@@ -178,7 +171,6 @@ async def listen_for_replies(forwarded_message_text):
         # Process the reply if found
         if replies:
             for reply in replies:
-                print(f"Original message: {forwarded_message_text}")
                 # print(f"Reply by RICKBOT: {reply.text}") # Don't print the reply to Rickbot - too spammy
 
                 contract_address, token_ticker = extract_token_data(reply.text or "")
