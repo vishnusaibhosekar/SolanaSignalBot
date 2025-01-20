@@ -30,7 +30,7 @@ SECTBOT_ID = int(os.getenv("SECTBOT_ID"))
 CHANNEL_IDS = config["channel_ids"]
 FORWARD_CHAT_ID = config["forward_chat_id"]
 
-GOATED_CALLER_IDS = ["1475250331","6232963498","1728129928","1233817378","1704007222","2119724331","1223694233","409154569","1338353807","964598469","769169133","1535262638","493872071","5484082105","1397332595","777844680","1797023625","1832350846","2131915710","5296498018","5542088802","1605472926","223721205","408193103","993953512","321994950","1777312783","1616484060","5395602026"]
+GOATED_CALLERS = ["Nima2103","simpin8ntpimpin","ariannn74","KTuck","marcus_g_relius","Juicebox10","arcadesora","zack178","Jarled250","alexem89","PaddyCoke","wesleywhb","Mounir2507","siddharthpeyyeti","alexandrekozlo","zillamix","Flynn180","JiggyStuntman","Frenksuss","Xodus_OG","John8544","ddjonesjr","YousufStalin","Minas098","saylesscrypto","clixtg","kawaljit76","satyaj2","vnt_0x"]
 
 # CSV log file path
 LOG_FILE = "message_logs.csv"
@@ -102,7 +102,7 @@ async def new_message_handler(event):
             return
         if sender.id == SECTBOT_ID:
             sect_data = sectbot_parse_message(message_text)
-            if not sect_data.caller_name in GOATED_CALLER_IDS:
+            if not sect_data.caller_name in GOATED_CALLERS:
                 return
 
     # Forward the message
