@@ -6,8 +6,8 @@ event_listeners_registered = False
 current_trade = {"in_progress": False, "contract_address": None, "action": None}  # Track trade state
 
 async def automate_solana_trojan_bot(client, bot_username, contract_address, token_ticker, action=None):
-    print(f"automate_solana_trojan_bot called: {client, bot_username, contract_address, token_ticker, action}" )
-    return
+    # print(f"automate_solana_trojan_bot called: {client, bot_username, contract_address, token_ticker, action}" )
+    # return
     global event_listeners_registered
 
     if not event_listeners_registered:

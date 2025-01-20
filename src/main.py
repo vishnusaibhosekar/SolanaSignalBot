@@ -6,12 +6,13 @@ import asyncio
 import os
 from collections import deque
 from utils.message_parser import extract_token_data
+from utils.sectbot_parser import sectbot_parse_message
 from trade_execution import automate_solana_trojan_bot
 
 # create a config dict with chat_id, channel_id keys in config.py
-from config import trenches_config, visi_config
+from config import trenches_config, visi_config, SHITCOIN_COMMUNITY_CALLS_ID
 
-config = visi_config
+config = trenches_config
 
 # Load environment variables
 load_dotenv()
@@ -25,9 +26,11 @@ TROJAN_BOT_USERNAME = "solana_trojanbot"
 UNIBOT_USERNAME = "unibot"
 
 RICKBOT_ID = int(os.getenv("RICKBOT_ID"))
-CHAT_ID = config["chat_id"]
+SECTBOT_ID = int(os.getenv("SECTBOT_ID"))
 CHANNEL_IDS = config["channel_ids"]
 FORWARD_CHAT_ID = config["forward_chat_id"]
+
+GOATED_CALLER_IDS = ["1475250331","6232963498","1728129928","1233817378","1704007222","2119724331","1223694233","409154569","1338353807","964598469","769169133","1535262638","493872071","5484082105","1397332595","777844680","1797023625","1832350846","2131915710","5296498018","5542088802","1605472926","223721205","408193103","993953512","321994950","1777312783","1616484060","5395602026"]
 
 # CSV log file path
 LOG_FILE = "message_logs.csv"
@@ -87,13 +90,25 @@ async def new_message_handler(event):
     Forwards the message text to the forward chat and processes replies there.
     """
 
-    # Forward the message
-    await forward_message(client, FORWARD_CHAT_ID, event.message.text)
-
-    # Log the new message
     channel_id = event.chat_id
     is_reply = event.message.is_reply
     replied_message_id = event.message.reply_to_msg_id if is_reply else None
+
+    message_text = event.message.text
+
+    if channel_id == SHITCOIN_COMMUNITY_CALLS_ID:
+        sender = await event.get_sender()
+        if not (sender.id == RICKBOT_ID or sender.id == SECTBOT_ID):
+            return
+        if sender.id == SECTBOT_ID:
+            sect_data = sectbot_parse_message(message_text)
+            if not sect_data.caller_name in GOATED_CALLER_IDS:
+                return
+
+    # Forward the message
+    await forward_message(client, FORWARD_CHAT_ID, message_text)
+
+    # Log the new message
     # TODO: add a primary key event_id in the log
     log_message(channel_id, event.message.id, event.message.text, is_reply, replied_message_id, "new")
 
