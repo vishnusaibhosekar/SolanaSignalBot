@@ -9,7 +9,9 @@ from utils.message_parser import extract_token_data
 from trade_execution import automate_solana_trojan_bot
 
 # create a config dict with chat_id, channel_id keys in config.py
-from config import config
+from config import trenches_config, visi_config
+
+config = visi_config
 
 # Load environment variables
 load_dotenv()
@@ -23,10 +25,9 @@ TROJAN_BOT_USERNAME = "solana_trojanbot"
 UNIBOT_USERNAME = "unibot"
 
 RICKBOT_ID = int(os.getenv("RICKBOT_ID"))
-# VISI_CHAT_ID = int(os.getenv("VISI_CHAT_ID"))
-# VISI_CHANNEL_ID = int(os.getenv("VISI_CHANNEL_ID"))
 CHAT_ID = config["chat_id"]
-CHANNEL_ID = config["channel_id"]
+CHANNEL_IDS = config["channel_ids"]
+FORWARD_CHAT_ID = config["forward_chat_id"]
 
 # CSV log file path
 LOG_FILE = "message_logs.csv"
@@ -35,7 +36,7 @@ LOG_FILE = "message_logs.csv"
 if not os.path.exists(LOG_FILE):
     with open(LOG_FILE, mode="w", newline="") as file:
         writer = csv.writer(file)
-        writer.writerow(["timestamp", "message_id", "message_text", "is_reply", "replied_message_id", "event_type"])
+        writer.writerow(["timestamp", "channel_id", "message_id", "message_text", "is_reply", "replied_message_id", "event_type"])
 
 # Telegram client setup
 client = TelegramClient(SESSION_NAME, TELEGRAM_API_ID, TELEGRAM_API_HASH).start(phone=TELEGRAM_PHONE)
@@ -63,7 +64,7 @@ def get_last_message_state(message_id):
         print(f"Error while fetching message state: {e}")
     return None
 
-def log_message(message_id, message_text, is_reply, replied_message_id, event_type):
+def log_message(channel_id, message_id, message_text, is_reply, replied_message_id, event_type):
     """
     Logs message details to a CSV file.
     """
@@ -71,6 +72,7 @@ def log_message(message_id, message_text, is_reply, replied_message_id, event_ty
         writer = csv.writer(file)
         writer.writerow([
             datetime.now(timezone.utc).isoformat(),  # Use timezone-aware UTC datetime
+            channel_id,
             message_id,
             message_text,
             is_reply,
@@ -78,27 +80,37 @@ def log_message(message_id, message_text, is_reply, replied_message_id, event_ty
             event_type
         ])
 
-@client.on(events.NewMessage(chats=CHANNEL_ID))
+@client.on(events.NewMessage(chats=CHANNEL_IDS))
 async def new_message_handler(event):
-    """
+    """"
     Handles new messages in the channel.
-    Adds them to the processing queue and logs them.
+    Forwards the message text to the forward chat and processes replies there.
     """
-    print(f"\nNew message in channel: {event.message.text}")
-    message_queue.append(event.message)
+
+    # Forward the message
+    await forward_message(client, FORWARD_CHAT_ID, event.message.text)
 
     # Log the new message
+    channel_id = event.chat_id
     is_reply = event.message.is_reply
     replied_message_id = event.message.reply_to_msg_id if is_reply else None
-    log_message(event.message.id, event.message.text, is_reply, replied_message_id, "new")
+    # TODO: add a primary key event_id in the log
+    log_message(channel_id, event.message.id, event.message.text, is_reply, replied_message_id, "new")
 
-    # Process messages in the queue one at a time
-    async with processing_lock:
-        while message_queue:
-            current_message = message_queue.popleft()
-            await process_message(current_message)
+    # Listen for replies in FORWARD_CHAT_ID
+    await listen_for_replies(event.message.text)
 
-@client.on(events.MessageEdited(chats=CHANNEL_ID))
+async def forward_message(client, forward_chat_id, message_text):
+    """
+    Forwards a message's text in forward_chat_id.
+    """
+    try:
+        await client.send_message(forward_chat_id, message_text)
+        print(f"Message forwarded to chat {forward_chat_id}: {message_text}")
+    except Exception as e:
+        print(f"Error while forwarding message: {e}")
+
+@client.on(events.MessageEdited(chats=CHANNEL_IDS))
 async def edited_message_handler(event):
     """
     Handles edited messages in the channel and logs them only if the text was actually changed.
@@ -113,81 +125,29 @@ async def edited_message_handler(event):
         return
 
     # Log the edited message
-    print(f"Edited message in channel: {event.message.text}")
+    channel_id = event.chat_id
     is_reply = event.message.is_reply
     replied_message_id = event.message.reply_to_msg_id if is_reply else None
-    log_message(event.message.id, event.message.text, is_reply, replied_message_id, "edit")
+    log_message(channel_id, event.message.id, event.message.text, is_reply, replied_message_id, "edit")
 
-async def process_message(original_message):
-    """
-    Processes a single message from the channel.
-    Waits for the forwarded message and listens for replies.
-    """
-    original_message_id = original_message.id
-    forwarded_message = await wait_for_forwarded_message(original_message_id, 10)
-
-    if forwarded_message:
-        print(f"Forwarded message found in chat: {forwarded_message.text}")
-        await listen_for_replies(forwarded_message)
-    else:
-        print("No forwarded message found within the timeout.")
-
-async def wait_for_forwarded_message(original_message_id, timeout):
-    """
-    Wait for the forwarded message in chat for a specified timeout.
-    Stops waiting as soon as the forwarded message is found.
-    """
-    try:
-        forwarded_message = None
-        event_received = asyncio.Event()  # Event to signal when the forwarded message is received
-
-        @client.on(events.NewMessage(chats=CHAT_ID))
-        async def forwarded_message_handler(event):
-            nonlocal forwarded_message
-
-            if event.message.fwd_from:
-                fwd_from = event.message.fwd_from
-
-                if (
-                    f"-100{fwd_from.from_id.channel_id}" == str(CHANNEL_ID)
-                    and fwd_from.channel_post == original_message_id
-                ):
-
-                    forwarded_message = event.message
-                    event_received.set()  # Signal that the forwarded message is found
-
-        try:
-            # Wait for the forwarded message for up to `timeout` seconds
-            await asyncio.wait_for(event_received.wait(), timeout=timeout)
-        except asyncio.TimeoutError:
-            pass  # Timeout occurred, proceed without forwarded_message
-
-        # Cleanup event handler
-        client.remove_event_handler(forwarded_message_handler)
-        return forwarded_message
-
-    except Exception as e:
-        print(f"Error while waiting for forwarded message: {e}")
-        return None
-
-async def listen_for_replies(forwarded_message):
+async def listen_for_replies(forwarded_message_text):
     """
     Listen for replies to the forwarded message in Chat.
     Stops waiting as soon as a reply from Rickbot is found.
     Executes trades sequentially.
     """
     try:
-        print(f"Listening for replies to forwarded message: {forwarded_message.text}")
+        print(f"Listening for replies in FORWARD_CHAT_ID for: {forwarded_message_text}")
         replies = []
         event_received = asyncio.Event()  # Event to signal when a reply is received
 
-        @client.on(events.NewMessage(chats=CHAT_ID))
+        @client.on(events.NewMessage(chats=FORWARD_CHAT_ID))
         async def reply_handler(event):
             nonlocal replies
 
             if event.is_reply:
                 reply_to = await event.get_reply_message()
-                if reply_to and reply_to.id == forwarded_message.id:
+                if reply_to and reply_to.text.strip() == forwarded_message_text.strip():
                     sender = await event.get_sender()
                     if sender.id == RICKBOT_ID:
                         replies.append(event)
@@ -202,7 +162,7 @@ async def listen_for_replies(forwarded_message):
         # Process the reply if found
         if replies:
             for reply in replies:
-                print(f"Original message: {forwarded_message.text}")
+                print(f"Original message: {forwarded_message_text}")
                 # print(f"Reply by RICKBOT: {reply.text}") # Don't print the reply to Rickbot - too spammy
 
                 contract_address, token_ticker = extract_token_data(reply.text or "")
@@ -212,6 +172,7 @@ async def listen_for_replies(forwarded_message):
 
                     # Ensure sequential execution of trades
                     try:
+                        # Commented out in automate_solana_trojan_bot, direct return
                         trade_success = await automate_solana_trojan_bot(
                             client, TROJAN_BOT_USERNAME, contract_address, token_ticker, "buy"
                         )
@@ -223,7 +184,7 @@ async def listen_for_replies(forwarded_message):
                         print(f"Error during trade execution: {e}")
         else:
             print("No replies from RICKBOT within the timeout for the message:")
-            print(f"Original message: {forwarded_message.text}")
+            print(f"Original message: {forwarded_message_text}")
 
         # Cleanup event handler
         client.remove_event_handler(reply_handler)
