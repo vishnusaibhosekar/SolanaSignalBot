@@ -4,9 +4,7 @@ from telethon import TelegramClient, events
 from dotenv import load_dotenv
 import asyncio
 import os
-from collections import deque
 from utils.message_parser import extract_token_data
-from utils.sectbot_parser import sectbot_parse_message
 from trade_execution import automate_solana_trojan_bot
 
 # create a config dict with chat_id, channel_id keys in config.py
@@ -98,6 +96,8 @@ async def new_message_handler(event):
             # Only proceed if the original sender ID is in GOATED_CALLERS
             if not original_sender.id in GOATED_CALLERS_SENDER_IDS:
                 return
+        else:
+            return
 
     # Forward the message
     await forward_message(client, FORWARD_CHAT_ID, message_text)

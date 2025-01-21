@@ -128,7 +128,7 @@ if __name__ == "__main__":
                         └ Sect Bot Profile (https://sectbot.com/caller/satyaj2)"""
     
     # Parse the message
-    parsed_data = parse_message(message_text)
+    parsed_data = sectbot_parse_message(message_text)
     
     # Print the extracted data
     for key, value in parsed_data.items():
