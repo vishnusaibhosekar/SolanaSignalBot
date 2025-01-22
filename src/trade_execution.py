@@ -54,9 +54,7 @@ async def handle_bot_response(event, event_type, client, bot_username, contract_
 
         if event.message.buttons:
             for row in event.message.buttons:
-                print("*************************************")
                 print(" | ".join(button.text for button in row))
-                print("*************************************")
                 for button in row:
                     if button.text.lower() == current_trade.get("action", ""):
                         print(f"Button clicked: {button.text}")
