@@ -87,21 +87,3 @@ def extract_sol_balance(message_text):
     except Exception as e:
         print(f"Error extracting SOL balance: {e}")
     return 0.0
-
-def extract_trade_amount(message_text):
-    try:
-        match = re.search(r"Amount:\s([\d.]+)", message_text)
-        if match:
-            return float(match.group(1))
-    except Exception as e:
-        print(f"Error extracting trade amount: {e}")
-    return 0.0
-
-def extract_trade_price(message_text):
-    try:
-        match = re.search(r"Price:\s([\d.]+)", message_text)
-        if match:
-            return float(match.group(1))
-    except Exception as e:
-        print(f"Error extracting trade price: {e}")
-    return 0.0
