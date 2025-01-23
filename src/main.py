@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 import asyncio
 import os
 from utils.message_parser import extract_token_data
-from trade_execution import automate_solana_trojan_bot
+from trojan_executor import TrojanExecutor
 
 # create a config dict with chat_id, channel_id keys in config.py
 from config import trenches_config, visi_config, SHITCOIN_COMMUNITY_CALLS_ID
@@ -22,6 +22,7 @@ SESSION_NAME = os.getenv("SESSION_NAME")
 
 TROJAN_BOT_USERNAME = "solana_trojanbot"
 UNIBOT_USERNAME = "unibot"
+TROJAN_CHAT_ID = os.getenv("TROJAN_CHAT_ID")
 
 RICKBOT_ID = int(os.getenv("RICKBOT_ID"))
 SECTBOT_ID = int(os.getenv("SECTBOT_ID"))
@@ -41,6 +42,9 @@ if not os.path.exists(LOG_FILE):
 
 # Telegram client setup
 client = TelegramClient(SESSION_NAME, TELEGRAM_API_ID, TELEGRAM_API_HASH).start(phone=TELEGRAM_PHONE)
+
+# Initialize TrojanExecutor
+executor = TrojanExecutor(client, TROJAN_BOT_USERNAME)
 
 def get_last_message_state(message_id):
     """
@@ -180,14 +184,7 @@ async def listen_for_replies(forwarded_message_text):
 
                     # Ensure sequential execution of trades
                     try:
-                        # Commented out in automate_solana_trojan_bot, direct return
-                        trade_success = await automate_solana_trojan_bot(
-                            client, TROJAN_BOT_USERNAME, contract_address, token_ticker, "buy"
-                        )
-                        if trade_success:
-                            print(f"Trade executed successfully for {token_ticker}.")
-                        else:
-                            print(f"Trade execution failed for {token_ticker}.")
+                        await executor.insta_buy(contract_address, token_ticker)
                     except Exception as e:
                         print(f"Error during trade execution: {e}")
         else:
@@ -201,7 +198,7 @@ async def listen_for_replies(forwarded_message_text):
         print(f"Error while listening for replies: {e}")
 
 async def main():
-    print("Listening for new calls...")
+    print("Listening for new calls with config: " + str(config))
     await client.run_until_disconnected()
 
 if __name__ == "__main__":
