@@ -19,12 +19,6 @@ class Trade:
         self.status = "pending"  # Initial status
         self.logs = []  # Logs specific to this trade
 
-    def add_log(self, message):
-        """
-        Add a log entry for this trade.
-        """
-        self.logs.append(message)
-
     def set_status(self, status):
         """
         Update the trade's status.
