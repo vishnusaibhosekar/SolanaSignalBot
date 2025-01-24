@@ -62,7 +62,7 @@ class TrojanListener(BaseListener):
 
             # Compare the current text with the last logged state
             if last_text is not None and last_text.strip() == event.message.text.strip():
-                print("Message text unchanged. Skipping log.")
+                print("Message text unchanged. Skipping log for message id: ", message_id, ".")
                 return  # Skip logging if the text hasn't changed
 
             logger.log_event(
