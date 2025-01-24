@@ -6,19 +6,10 @@ class TradeStep(ABC):
     """
 
     @abstractmethod
-    async def execute(self, executor):
+    async def execute(self, trade, executor):
         """
         Execute the trade step.
         Args:
             executor (TrojanExecutor): The executor instance executing the step.
-        """
-        pass
-
-    @abstractmethod
-    def verify(self, executor):
-        """
-        Verify if the step was successfully executed.
-        Args:
-            executor (TrojanExecutor): The executor instance verifying the step.
         """
         pass

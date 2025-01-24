@@ -1,7 +1,7 @@
 # src/models/trade.py
 
 class Trade:
-    def __init__(self, trade_id, trade_type, wallet, trade_steps):
+    def __init__(self, trade_id, trade_type, contract_address, wallet, trade_steps):
         """
         Initialize a Trade object.
         
@@ -14,7 +14,7 @@ class Trade:
         self.trade_id = trade_id
         self.trade_type = trade_type
         self.wallet = wallet
-        self.contract_address = None
+        self.contract_address = contract_address
         self.trade_steps = trade_steps
         self.status = "pending"  # Initial status
         self.logs = []  # Logs specific to this trade

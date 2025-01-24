@@ -20,7 +20,7 @@ class Logger:
             os.makedirs(self.LOG_DIR, exist_ok=True)
             print(f"Logs directory created: {self.LOG_DIR}")
 
-    def initialize_log_file(self, log_file):
+    def initialize_event_log_file(self, log_file):
         """
         Ensure the log file exists and has the correct headers.
         """
@@ -28,37 +28,29 @@ class Logger:
             print(f"Creating log file: {log_file}")
             with open(log_file, mode="w", newline="") as file:
                 writer = csv.writer(file)
-                writer.writerow(["event_id", "timestamp", "sender_id", "channel_id", "message_id", "message_text", "is_reply", "replied_message_id", "event_type"])
+                writer.writerow(["timestamp", "sender_id", "channel_id", "message_id", "message_text", "is_reply", "replied_message_id", "event_type"])
 
-    def get_next_event_id(self, log_file):
+    def initialize_trade_log_file(self, log_file):
         """
-        Calculate the next event_id based on the current log file contents.
+        Ensure the log file exists and has the correct headers.
         """
         if not os.path.exists(log_file):
-            return 1  # Start at 1 if the file doesn't exist
+            print(f"Creating log file: {log_file}")
+            with open(log_file, mode="w", newline="") as file:
+                writer = csv.writer(file)
+                writer.writerow(["timestamp", "trade_id", "contract_address", "trade_type", "status", "trade_step"])
 
-        try:
-            with open(log_file, mode="r") as file:
-                rows = list(csv.DictReader(file))
-                if rows:
-                    last_event = rows[-1]
-                    return int(last_event["event_id"]) + 1
-        except Exception as e:
-            print(f"Error calculating next event_id for {log_file}: {e}")
-        return 1  # Fallback to 1 if there's an error
-
-    def log_event(self, log_file, sender_id, channel_id, message_id, message_text, is_reply, replied_message_id, event_type):
+    def log_event(self, sender_id, channel_id, message_id, message_text, is_reply, replied_message_id, event_type):
         """
         Logs a message to the specified log file with a unique event_id.
         """
-        self.initialize_log_file(log_file)  # Ensure the file has headers
-        event_id = self.get_next_event_id(log_file)
+        log_file = os.path.join(self.LOG_DIR, "trojan_event_logs.csv")
+        self.initialize_event_log_file(log_file)  # Ensure the file has headers
 
         try:
             with open(log_file, mode="a", newline="") as file:
                 writer = csv.writer(file)
                 writer.writerow([
-                    event_id,
                     datetime.now(timezone.utc).isoformat(),
                     sender_id,
                     channel_id,
@@ -71,16 +63,30 @@ class Logger:
         except Exception as e:
             print(f"Error writing to log file {log_file}: {e}")
 
-    def get_last_message_state(self, log_file, message_id):
+    def log_trade(self, trade_id, contract_address, trade_type, status, trade_step=None):
         """
-        Fetches the last logged state of a message from the specified log file.
+        Log trade information to a specific log file.
+        
+        Args:
+        trade_id (int): Unique ID for the trade.
+        contract_address (str): Address of the token being traded.
+        trade_type (str): Type of trade (e.g., insta_buy).
+        status (str): Current status of the trade (e.g., started, success, failure).
+        trade_step (str): Optional step name for granular logging.
         """
+        log_file = os.path.join(self.LOG_DIR, "trojan_trades.csv")
+        self.initialize_trade_log_file(log_file)  # Ensure the file has headers
+
         try:
-            with open(log_file, mode="r") as file:
-                rows = list(csv.DictReader(file))
-                for row in reversed(rows):  # Iterate from the latest
-                    if int(row["message_id"]) == message_id:
-                        return row["message_text"]
+            with open(log_file, mode="a", newline="") as file:
+                writer = csv.writer(file)
+                writer.writerow([
+                    datetime.now(timezone.utc).isoformat(),  # Timestamp
+                    trade_id,  # Trade ID
+                    contract_address,  # Contract address
+                    trade_type,  # Trade type
+                    status,  # Trade status
+                    trade_step or "",  # Add trade_step or empty string if not provided
+                ])
         except Exception as e:
-            print(f"Error fetching message state from {log_file}: {e}")
-        return None
+            print(f"Error logging trade to {log_file}: {e}")

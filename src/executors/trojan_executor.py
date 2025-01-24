@@ -1,19 +1,25 @@
-import asyncio
 from executors.trade_executor import TradeExecutor
 from utils.logger import Logger
+from client import TelegramClientSingleton
 
 class TrojanExecutor(TradeExecutor):
-    def __init__(self, client, bot_username):
+    def __init__(self, bot_username, event_queue):
         """
         Initialize the TrojanExecutor.
 
         Args:
-            client (TelegramClient): Telegram client for interacting with the bot.
             bot_username (str): Bot username to interact with.
+            event_queue (EventQueue): Shared event queue.
         """
-        self.client = client
         self.bot_username = bot_username
+        self.event_queue = event_queue
         self.logger = Logger()
+
+    async def init_client(self):
+        """
+        Initialize the Telegram client asynchronously.
+        """
+        self.client = await TelegramClientSingleton.get_instance()
 
     async def execute_trade(self, trade):
         """
@@ -22,52 +28,23 @@ class TrojanExecutor(TradeExecutor):
         Args:
             trade (Trade): The trade to execute.
         """
-        self.logger.log_event(
-            log_file="logs/trojan_event_logs.csv",  # Log trade execution
-            sender_id=None,  # Trade-level logging
-            channel_id=None,
-            message_id=None,
-            message_text=None,
-            is_reply=False,
-            replied_message_id=None,
-            event_type=f"Trade {trade.trade_id} started: {trade.trade_type}",
+        # Log trade start using log_trade
+        self.logger.log_trade(
+            trade_id=trade.trade_id,
+            contract_address=trade.contract_address,
+            trade_type=trade.trade_type,
+            status="started"
         )
 
-        # Process each step
+        trade.set_status("in_progress")
+
+        # Process each step in the trade
         for step in trade.trade_steps:
             try:
                 # Execute the step
-                await step.execute(self)
-
-                # Verify the step
-                if not step.verify(self):
-                    raise Exception(f"Step verification failed for trade {trade.trade_id}")
-
+                await step.execute(trade, self)
             except Exception as e:
-                # Log failure and set trade status
-                self.logger.log_event(
-                    log_file="logs/trojan_event_logs.csv",
-                    sender_id=None,
-                    channel_id=None,
-                    message_id=None,
-                    message_text=str(e),
-                    is_reply=False,
-                    replied_message_id=None,
-                    event_type=f"Trade {trade.trade_id} failed",
-                )
+                print("Exception while executing step:", e)
                 trade.set_status("failure")
-                trade.add_log(f"Error: {e}")
-                return  # Stop processing further steps
+                return
 
-        # Mark trade as successful
-        trade.set_status("success")
-        self.logger.log_event(
-            log_file="logs/trojan_event_logs.csv",
-            sender_id=None,
-            channel_id=None,
-            message_id=None,
-            message_text=None,
-            is_reply=False,
-            replied_message_id=None,
-            event_type=f"Trade {trade.trade_id} completed successfully",
-        )
