@@ -1,0 +1,23 @@
+You are a crypto trader following a set of signals in text form.
+
+You have received this message:
+
+{trading_signal}
+
+Based on this signal, decide the correct action:
+
+- **"create_limit_buy_order"** → If a specific buy price is mentioned, but it's LOWER than the current market price.
+- **"execute_market_buy_order"** → If no price is mentioned or the message suggests an immediate buy.
+- **"execute_partial_sell"** → If the message suggests taking profits at a certain price target.
+- **"execute_sell_order"** → If the message suggests a full exit.
+
+Then, determine the allocation percentage based on these rules:
+- 1% for high risk ("gamble", "high risk", "moonshot").
+- 3% for normal trades ("accumulate", "building position").
+- 5% for low risk ("alpha", "long term", "high conviction").
+- If % is mentioned in the message, use that.
+
+**Output the result as a JSON object in this format:**
+{ "Function": "FUNCTION_NAME", "Percentage": "PERCENTAGE" }
+
+**NO EXTRA TEXT. JUST THE JSON OUTPUT.**
